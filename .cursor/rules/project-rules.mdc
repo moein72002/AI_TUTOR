@@ -1,0 +1,95 @@
+---
+alwaysApply: true
+---
+---
+description: General dev rules – Docker, Compose, uv, local run
+globs:
+  - "Dockerfile"
+  - "docker-compose.yml"
+  - ".dockerignore"
+  - "pyproject.toml"
+  - ".env"
+  - ".env.example"
+  - "README.md"
+alwaysApply: true
+---
+
+## Local run – single command
+- The app must run locally with a single command: `docker compose up` (or `docker compose up --build` on first run).
+- Streamlit is served at `http://localhost:8501`.
+- The container runs the app via `uv run streamlit run src/ai_tutor/app/app.py --server.port=8501 --server.address=0.0.0.0`.
+
+## Containers & Compose
+- Base image: `python:3.11-slim`.
+- Install `uv` in the image; do not use pip directly.
+- Expose port `8501`; map it in Compose `8501:8501`.
+- Volumes:
+  - `./src:/app/src` for live-reload development.
+  - `./data:/app/data` for persisted sessions.
+- Environment: load from `.env`. Do not bake secrets into images.
+- Optional test service (Compose profile: `test`) may run `uv run pytest -q` and then exit.
+- Keep images slim: use `.dockerignore`, avoid unnecessary build deps, and clean apt caches.
+
+## Dependencies & builds
+- Manage deps in `pyproject.toml` via uv. Use `uv sync` in Docker build to create `.venv`.
+- Add runtime deps under `[project].dependencies`; dev-only tools under `[project.optional-dependencies].dev`.
+- After changing dependencies, rebuild: `docker compose build`.
+
+## Testing policy in containers
+- Unit tests may depend on network and external APIs. Do not mock or skip real service calls in unit tests.
+- Run unit tests: `docker compose --profile test run --rm test`
+- Ensure required env vars are set (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, `TAVILY_API_KEY`). Tests will fail if missing.
+- Keep runtime reasonable (use small result limits, sensible timeouts) while allowing real calls.
+- Integration tests remain available for end-to-end scenarios and may also call real services.
+
+## Guardrails
+- No secrets in Dockerfile, Compose, or source. Use `.env` (never commit) and `.env.example` (safe defaults).
+- The UI never calls LLM directly; use the graph/services.
+- State must be JSON-serializable for persistence in `./data`.
+
+## Troubleshooting
+- If reload doesn’t trigger, ensure the volume `./src:/app/src` is mounted and Streamlit’s file watcher is active.
+- If dependencies changed but container runs old versions, run `docker compose build --no-cache`.
+
+## LLM configuration (real calls)
+- All LLM usage must be configured via env:
+  - `OPENAI_API_KEY`
+  - `OPENAI_BASE_URL` (supports OpenAI, Azure, local gateways like vLLM; must be set)
+  - `OPENAI_MODEL` (e.g., gpt-4o-mini)
+- Construct the client only in `llm/providers.py`. Do not call the LLM directly from UI.
+- Default to `temperature=0` in tests for determinism. Prefer schema/shape assertions over exact text.
+- Integration tests (optional) may call the real LLM when env vars are present; otherwise they should be skipped.
+
+## Web search (Tavily)
+- Online search is optional and must be configured via env:
+  - `TAVILY_API_KEY`
+- The UI may expose a toggle to enable/disable search. The feature must be disabled automatically if the key is missing.
+- Implement web search in a dedicated service module (e.g., `services/web_search.py`). Do not call external services directly from UI.
+- Unit tests may depend on network or external APIs; Do not mock or skip search calls in tests when needed.
+
+## `.env.example` additions
+
+```env
+# LLM
+OPENAI_API_KEY=
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
+
+# App
+ENV=dev
+
+# Database
+DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/ai_tutor
+
+# Web search
+TAVILY_API_KEY=
+```
+
+## Guardrails
+- No secrets in Dockerfile, Compose, or source. Use `.env` (never commit) and `.env.example` (safe defaults).
+- The UI never calls LLM directly; use the graph/services.
+- State must be JSON-serializable for persistence in `./data`.
+
+## Troubleshooting
+- If reload doesn’t trigger, ensure the volume `./src:/app/src` is mounted and Streamlit’s file watcher is active.
+- If dependencies changed but container runs old versions, run `docker compose build --no-cache`.

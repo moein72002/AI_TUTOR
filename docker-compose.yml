@@ -1,0 +1,53 @@
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      - ./hello_llm.py:/app/hello_llm.py
+    command: uv run streamlit run src/ai_tutor/app/app.py --server.port=8501 --server.address=0.0.0.0
+
+  test:
+    profiles: ["test"]
+    build:
+      context: .
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+      - ./hello_llm.py:/app/hello_llm.py
+    command: uv run pytest -q
+
+  integration:
+    profiles: ["integration"]
+    build:
+      context: .
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+    command: uv run pytest -q
+
+  db:
+    image: postgres:16-alpine
+    profiles: ["db"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ai_tutor
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  pgdata:
+
+
