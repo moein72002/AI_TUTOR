@@ -27,6 +27,7 @@ alwaysApply: true
   - `./src:/app/src` for live-reload development.
   - `./data:/app/data` for persisted sessions.
 - Environment: load from `.env`. Do not bake secrets into images.
+  - For optional Postgres service, read credentials from `.env` (e.g., `POSTGRES_PASSWORD`).
 - Optional test service (Compose profile: `test`) may run `uv run pytest -q` and then exit.
 - Keep images slim: use `.dockerignore`, avoid unnecessary build deps, and clean apt caches.
 
@@ -42,14 +43,35 @@ alwaysApply: true
 - Keep runtime reasonable (use small result limits, sensible timeouts) while allowing real calls.
 - Integration tests remain available for end-to-end scenarios and may also call real services.
 
+## Local test and dev (no Docker)
+- Create venv and install deps: `uv venv && uv sync --extra dev`
+- Set `PYTHONPATH=./src` in your shell.
+- Run tests locally: `uv run pytest -q`
+
 ## Guardrails
 - No secrets in Dockerfile, Compose, or source. Use `.env` (never commit) and `.env.example` (safe defaults).
 - The UI never calls LLM directly; use the graph/services.
 - State must be JSON-serializable for persistence in `./data`.
 
+### Credentials and secrets policy
+- Do not commit any credentials, API keys, or tokens to GitHub. All sensitive values must live in `.env` only.
+- Keep `.env` excluded from version control; provide `.env.example` with placeholder values for local setup.
+- Review diffs before committing to catch accidental secrets. If a secret was pushed, rotate it immediately and purge history if needed.
+
 ## Troubleshooting
 - If reload doesn’t trigger, ensure the volume `./src:/app/src` is mounted and Streamlit’s file watcher is active.
 - If dependencies changed but container runs old versions, run `docker compose build --no-cache`.
+
+## Clarification-first policy
+- Before implementing a task, ask any clarifying questions needed to ensure intent and constraints are understood.
+- If the user provides clarifications, incorporate them immediately and proceed.
+
+## Quizzes (MCQ)
+- After teaching a topic, the system can generate MCQ quizzes that reference the exact chat context for alignment.
+- Persist quizzes and results under `./data` (`quizzes/` and `quiz_results/`) in JSON for later review.
+- Track scores (correct/total) per quiz and show history in the UI.
+- Store selected answer indices and incorrect question indices in results to enable personalized remediation.
+- Provide a remediation flow that generates a short personalized lesson based on the incorrect questions.
 
 ## LLM configuration (real calls)
 - All LLM usage must be configured via env:
@@ -66,6 +88,20 @@ alwaysApply: true
 - The UI may expose a toggle to enable/disable search. The feature must be disabled automatically if the key is missing.
 - Implement web search in a dedicated service module (e.g., `services/web_search.py`). Do not call external services directly from UI.
 - Unit tests may depend on network or external APIs; Do not mock or skip search calls in tests when needed.
+
+## LangChain and LangGraph
+- Provide a LangChain-based chat model wrapper; build orchestration with LangGraph.
+- The UI must not call LangChain directly; expose orchestration via the graph layer (e.g., `graph/lang_tutor.py`).
+- Configure LangChain from the same env vars: `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`.
+- For models starting with `gpt-5`, omit unsupported parameters (e.g., `temperature`, `max_tokens`).
+- On session start, proactively generate a first assistant message tailored to the chosen subject and learning goal.
+- The UI should offer popular subjects and an input to write any custom subject; custom overrides popular selection if provided.
+
+## LangSmith (observability)
+- Support LangSmith tracing for chains/graphs.
+- Required env to enable: `LANGCHAIN_TRACING_V2=true`, `LANGCHAIN_API_KEY`.
+- Optional: `LANGCHAIN_ENDPOINT` (custom endpoint), `LANGCHAIN_PROJECT` (project name).
+- Include tags/metadata on runs to identify app and engine (e.g., `ai_tutor`, `langgraph`).
 
 ## `.env.example` additions
 

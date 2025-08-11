@@ -38,10 +38,12 @@ services:
   db:
     image: postgres:16-alpine
     profiles: ["db"]
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ai_tutor
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-ai_tutor}
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:

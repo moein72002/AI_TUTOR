@@ -91,4 +91,22 @@ class SessionStore:
             )
         return items
 
+    def delete_session(self, session_id: str) -> bool:
+        path = self._session_path(session_id)
+        if not path.exists():
+            return False
+        try:
+            path.unlink()
+            return True
+        except Exception:
+            return False
+
+    def find_session_by_subject_goal(self, subject: str, goal: Optional[str]) -> Optional[str]:
+        """Return an existing session_id if one matches the exact subject and goal."""
+        normalized_goal = goal or ""
+        for info in self.list_sessions():
+            if info.get("subject", "") == subject and (info.get("goal", "") or "") == normalized_goal:
+                return info.get("session_id")
+        return None
+
 
