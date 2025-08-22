@@ -5,10 +5,12 @@ from typing import Dict, List
 from ai_tutor.llm.providers import get_llm_provider
 
 
-def build_remediation_prompt(subject: str, topic: str, quiz: Dict, incorrect_indices: List[int]) -> List[Dict[str, str]]:
+def build_remediation_prompt(subject: str, topic: str, quiz: Dict, incorrect_indices: List[int], language: str = "en") -> List[Dict[str, str]]:
     system = (
         "You are a kind, effective tutor. Diagnose misconceptions and teach with concise steps, examples, and quick checks."
     )
+    if language.lower().startswith("fa"):
+        system += " Respond in Persian (Farsi)."
     mistakes_summary_lines: List[str] = []
     for i in incorrect_indices:
         try:
@@ -28,9 +30,9 @@ def build_remediation_prompt(subject: str, topic: str, quiz: Dict, incorrect_ind
     return [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
 
-def generate_remediation(subject: str, topic: str, quiz: Dict, incorrect_indices: List[int]) -> str:
+def generate_remediation(subject: str, topic: str, quiz: Dict, incorrect_indices: List[int], language: str = "en") -> str:
     provider = get_llm_provider()
-    messages = build_remediation_prompt(subject=subject, topic=topic, quiz=quiz, incorrect_indices=incorrect_indices)
+    messages = build_remediation_prompt(subject=subject, topic=topic, quiz=quiz, incorrect_indices=incorrect_indices, language=language)
     return provider.generate(messages=messages, temperature=0)
 
 

@@ -52,16 +52,16 @@ class LangTutorGraph:
         self._graph.add_edge("call_llm", END)
         self._app = self._graph.compile()
 
-    def start_session(self, subject: str, goal: Optional[str]) -> Session:
-        session = self.store.create_session(subject=subject, goal=goal)
+    def start_session(self, subject: str, goal: Optional[str], language: Optional[str] = "en") -> Session:
+        session = self.store.create_session(subject=subject, goal=goal, language=language or "en")
         session.messages.append(
-            ChatMessage(role="system", content=build_system_prompt(subject, goal))
+            ChatMessage(role="system", content=build_system_prompt(subject, goal, language or "en"))
         )
         # Proactively generate the first assistant message to kick off the lesson
         try:
             chat = get_langchain_chat()
             lc_messages = convert_dict_messages_to_langchain([
-                {"role": "system", "content": build_system_prompt(subject, goal)},
+                {"role": "system", "content": build_system_prompt(subject, goal, language or "en")},
                 {
                     "role": "user",
                     "content": (

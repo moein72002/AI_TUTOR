@@ -22,6 +22,7 @@ class Session:
     subject: str
     goal: Optional[str]
     messages: List[ChatMessage]
+    language: str = "en"
 
 
 class SessionStore:
@@ -38,9 +39,9 @@ class SessionStore:
     def _session_path(self, session_id: str) -> Path:
         return self.sessions_dir / f"{session_id}.json"
 
-    def create_session(self, subject: str, goal: Optional[str]) -> Session:
+    def create_session(self, subject: str, goal: Optional[str], language: str = "en") -> Session:
         session_id = uuid.uuid4().hex
-        session = Session(session_id=session_id, subject=subject, goal=goal, messages=[])
+        session = Session(session_id=session_id, subject=subject, goal=goal, messages=[], language=language)
         self.save_session(session)
         return session
 
@@ -55,6 +56,7 @@ class SessionStore:
             subject=raw.get("subject", ""),
             goal=raw.get("goal"),
             messages=messages,
+            language=raw.get("language", "en"),
         )
 
     def save_session(self, session: Session) -> None:
@@ -63,6 +65,7 @@ class SessionStore:
             "session_id": session.session_id,
             "subject": session.subject,
             "goal": session.goal,
+            "language": getattr(session, "language", "en"),
             "messages": [
                 {"role": m.role, "content": m.content} for m in session.messages
             ],

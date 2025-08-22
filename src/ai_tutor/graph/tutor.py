@@ -7,20 +7,23 @@ from ai_tutor.services.session_store import ChatMessage, Session, SessionStore
 from ai_tutor.services.web_search import is_tavily_configured, tavily_search
 
 
-def build_system_prompt(subject: str, goal: Optional[str]) -> str:
+def build_system_prompt(subject: str, goal: Optional[str], language: str = "en") -> str:
     goal_clause = f" The learner's goal is: {goal}." if goal else ""
+    language_clause = (
+        " Respond in Persian (Farsi) using clear, natural language." if language.lower().startswith("fa") else ""
+    )
     return (
         "You are a patient, Socratic AI tutor. Ask guiding questions, break problems into steps, "
         "and adapt to the learner's knowledge. Prefer concise explanations and examples."
         + goal_clause
         + f" You are tutoring the subject: {subject}."
-        " Always verify understanding before moving on."
+        " Always verify understanding before moving on." + language_clause
     )
 
 
 def ensure_system_message(session: Session) -> None:
     if not any(m.role == "system" for m in session.messages):
-        session.messages.insert(0, ChatMessage(role="system", content=build_system_prompt(session.subject, session.goal)))
+        session.messages.insert(0, ChatMessage(role="system", content=build_system_prompt(session.subject, session.goal, getattr(session, "language", "en"))))
 
 
 def generate_reply(session: Session, user_message: str, temperature: float = 0.2, enable_web_search: bool = False) -> str:
@@ -58,11 +61,11 @@ class TutorGraph:
     def __init__(self, store: Optional[SessionStore] = None) -> None:
         self.store = store or SessionStore()
 
-    def start_session(self, subject: str, goal: Optional[str]) -> Session:
-        session = self.store.create_session(subject=subject, goal=goal)
+    def start_session(self, subject: str, goal: Optional[str], language: str = "en") -> Session:
+        session = self.store.create_session(subject=subject, goal=goal, language=language)
         # Prime system message immediately for persistence
         session.messages.append(
-            ChatMessage(role="system", content=build_system_prompt(subject, goal))
+            ChatMessage(role="system", content=build_system_prompt(subject, goal, language))
         )
         self.store.save_session(session)
         return session

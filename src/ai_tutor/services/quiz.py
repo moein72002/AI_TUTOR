@@ -35,11 +35,13 @@ class MCQQuiz(BaseModel):
     meta: Optional[QuizMeta] = None
 
 
-def _build_quiz_prompt(subject: str, topic: str, difficulty: Difficulty, num_questions: int, context: str) -> List[dict]:
+def _build_quiz_prompt(subject: str, topic: str, difficulty: Difficulty, num_questions: int, context: str, language: str = "en") -> List[dict]:
     system = (
         "You are an expert educator. Create a concise multiple-choice quiz. "
         "Return ONLY strict JSON (no markdown, no text before/after)."
     )
+    if language.lower().startswith("fa"):
+        system += " Respond in Persian (Farsi)."
     user = (
         f"Subject: {subject}. Topic: {topic}. Difficulty: {difficulty}. Number of questions: {num_questions}.\n"
         "If the topic is clearly irrelevant to the subject and context, IGNORE the topic and generate the quiz for the subject instead.\n"
@@ -81,6 +83,7 @@ def generate_mcq_quiz(
         difficulty=difficulty,
         num_questions=num_questions,
         context=context,
+        language=(conversation_messages and conversation_messages[0].get("language") or "en") if isinstance(conversation_messages, list) else "en",
     )
     # Try with context; on transient errors, retry once then fallback to topic-only
     used_fallback = False
